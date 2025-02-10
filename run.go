@@ -16,6 +16,60 @@ import (
 	"time"
 )
 
+type Email struct {
+	Email    string `json:"email"`
+	Primary  bool   `json:"primary"`
+	Verified bool   `json:"verified"`
+}
+
+func getPrimaryEmail(token string) (string, error) {
+	url := "https://api.github.com/user/emails"
+
+	// Create a new request
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", err
+	}
+
+	// Set the authorization header with the GitHub token
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	// Make the request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	// Check for successful response
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to fetch emails, status: %s", resp.Status)
+	}
+
+	// Read the response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	// Parse the JSON response
+	var emails []Email
+	err = json.Unmarshal(body, &emails)
+	if err != nil {
+		return "", err
+	}
+
+	// Loop through the emails to find the primary one
+	for _, email := range emails {
+		if email.Primary {
+			return email.Email, nil
+		}
+	}
+
+	return "", fmt.Errorf("no primary email found")
+}
+
 // Struct for the SSH key payload
 type SSHKeyPayload struct {
 	Title string `json:"title"`
@@ -403,12 +457,18 @@ func main() {
 	linesToAdd := []string{
 		"/push.exe",
 		"/publish.exe",
+		"/push.sh",
+		"/publish.sh",
+		"/push",
+		"/publish",
 		"/node_modules/*",
 		"/.next",
+		"push.exe",
+		"publish.exe",
 		"/packages",
 		"/chrome",
-		"/bin",
-		"/*/bin",
+		// "/bin",
+		// "/*/bin",
 		"/*/obj",
 	}
 
@@ -432,22 +492,35 @@ func main() {
 	}
 
 	gitUsername, _ := getGitHubUsername(githubToken)
+	githubEmail := ""
+
+	email, err := getPrimaryEmail(githubToken)
+	if err == nil {
+		githubEmail = email
+	}
 
 	fmt.Println("github username:", gitUsername)
+	fmt.Println("github email:", githubEmail)
 
 	repousername, _ := GetUsernameFromRemote("./")
 
-	if strings.EqualFold(repousername, gitUsername) {
-		os.RemoveAll("./.git")
+	RunCommand("git", "config", "user.email", githubEmail)
+	RunCommand("git", "config", "user.name", gitUsername)
+
+	if _, err := os.Stat("./.git"); err == nil {
+		if !strings.EqualFold(repousername, gitUsername) {
+			os.RemoveAll("./.git")
+			RunCommand("git", "remote", "remove", "origin")
+			RunCommand("git", "pull", "--rebase", "origin", "main")
+			RunCommand("git", "pull", "--rebase", "origin", "master")
+			RunCommand("git", "reset", "origin/main")
+			RunCommand("git", "reset", "origin/master")
+		}
+	} else {
+		RunCommand("git", "init")
+		RunCommand("git", "remote", "add", "origin", "https://"+githubToken+"@github.com/"+gitUsername+"/"+repoName+".git")
 	}
 
-	RunCommand("git", "init")
-	RunCommand("git", "remote", "remove", "origin")
-	RunCommand("git", "pull", "--rebase", "origin", "main")
-	RunCommand("git", "pull", "--rebase", "origin", "master")
-	RunCommand("git", "reset", "origin/main")
-	RunCommand("git", "reset", "origin/master")
-	RunCommand("git", "remote", "add", "origin", "https://"+githubToken+"@github.com/"+gitUsername+"/"+repoName+".git")
 	RunCommand("git", "add", ".")
 	RunCommand("git", "commit", "-m", "Update")
 	RunCommand("git", "push", "-u", "origin", "master", "--force")

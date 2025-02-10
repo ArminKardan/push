@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 )
 
-var key = []byte("") // Use a fixed key for simplicity
+var key = []byte("6Z8kaNvdNUsbFZkXtwARCUjnFc7HWILq") // Use a fixed key for simplicity
 
 // Encrypt the plaintext string
 func encrypt(plaintext string) (string, error) {
