@@ -444,7 +444,7 @@ func main() {
 	// Create a new repository
 	repoName := filepath.Base(currentDir)
 	repoDescription := "Turing research group."
-	isPrivate := false // Set to true for a private repository
+	isPrivate := true // Set to true for a private repository
 	if repoName[0] == '_' {
 		isPrivate = true
 	}
@@ -466,7 +466,7 @@ func main() {
 		"push.exe",
 		"publish.exe",
 		"/packages",
-		"/chrome",
+		// "/chrome",
 		// "/bin",
 		// "/*/bin",
 		"/*/obj",
@@ -512,9 +512,9 @@ func main() {
 			os.RemoveAll("./.git")
 			RunCommand("git", "remote", "remove", "origin")
 			RunCommand("git", "pull", "--rebase", "origin", "main")
-			RunCommand("git", "pull", "--rebase", "origin", "master")
+			// RunCommand("git", "pull", "--rebase", "origin", "master")
 			RunCommand("git", "reset", "origin/main")
-			RunCommand("git", "reset", "origin/master")
+			// RunCommand("git", "reset", "origin/master")
 		}
 	} else {
 		RunCommand("git", "init")
@@ -522,8 +522,9 @@ func main() {
 	}
 
 	RunCommand("git", "add", ".")
+	RunCommand("git", "branch", "-M", "main")
 	RunCommand("git", "commit", "-m", "Update")
-	RunCommand("git", "push", "-u", "origin", "master", "--force")
+	RunCommand("git", "push", "-u", "origin", "main", "--force")
 	// if err != nil {
 	// 	fmt.Println("Error:", err)
 	// 	os.Exit(1)
